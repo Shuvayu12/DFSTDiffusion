@@ -189,8 +189,12 @@ def poison(args):
         train_mask(attack, train_loader)
         torch.save(attack.backdoor.net_mask, f'{save_path[:-3]}_mask.pt')
     elif args.attack == 'dfst':
-        train_gan(attack, train_loader)
-        torch.save(attack.backdoor.genr_a2b, f'{save_path[:-3]}_generator.pt')
+        pipeline = get_dfst_pipeline()
+        normalize = get_dfst_transforms()
+        backdoor = DFST(
+            mixing_pipeline=pipeline,
+            normalize=normalize
+        )
     elif args.attack == 'dfst_detox':
         load_path = f'{save_path[:-9]}.pt'
         model = torch.load(load_path, map_location=DEVICE)

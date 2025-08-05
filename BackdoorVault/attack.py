@@ -94,7 +94,7 @@ class Attack:
             self.sched_genr = torch.optim.lr_scheduler.MultiStepLR(
                                     self.optim_genr, [200, 300, 400, 500], 0.1)
         elif 'dfst' in self.attack:
-            self.optim_genr_a2b = torch.optim.Adam(
+            '''self.optim_genr_a2b = torch.optim.Adam(
                                         self.backdoor.genr_a2b.parameters(),
                                         2e-4, betas=(0.5, 0.999))
             self.optim_genr_b2a = torch.optim.Adam(
@@ -105,8 +105,8 @@ class Attack:
                                         2e-4, betas=(0.5, 0.999))
             self.optim_disc_b   = torch.optim.Adam(
                                         self.backdoor.disc_b.parameters(),
-                                        2e-4, betas=(0.5, 0.999))
-
+                                        2e-4, betas=(0.5, 0.999))'''
+            pass
             if self.attack == 'dfst_detox':
                 self.net_names = os.listdir('ckpt/dfst/')
                 self.optimizer = torch.optim.SGD(model.parameters(), lr=1e-2,
@@ -180,15 +180,13 @@ class Attack:
             self.loss_div = loss_div * self.lambda_div
         elif self.attack in ['dynamic', 'dfst', 'dfst_detox']:
             num_bd = int(inputs.size(0) * self.poison_rate)
-            inputs_bd = self.backdoor.inject(inputs[:num_bd])
+            inputs_bd = self.backdoor.inject(
+                content_image=inputs[:num_bd],
+                style_image=None,  
+                strength=0.75,     
+                guidance_scale=7.5 
+            )
             labels_bd = torch.full((num_bd,), self.target).to(self.device)
-
-            if self.attack == 'dfst_detox':
-                name = np.random.choice(self.net_names)
-                net_feature = torch.load(f'ckpt/dfst/{name}').to(self.device)
-                x_detox = net_feature(inputs[num_bd : 2 * num_bd]).detach()
-                x_detox = self.processing[0](x_detox)
-                inputs[num_bd : 2 * num_bd] = x_detox
 
             inputs = torch.cat([inputs_bd, inputs[num_bd:]], dim=0)
             labels = torch.cat([labels_bd, labels[num_bd:]], dim=0)
