@@ -5,7 +5,7 @@ from backdoors import *
 from models import *
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-
+from diffusers import StableDiffusionImg2ImgPipeline
 
 EPSILON = 1e-7
 
@@ -145,10 +145,17 @@ def get_backdoor(attack, shape, normalize=None, device=None, args=None):
         if os.path.exists(genr_path):
             backdoor.net_genr = torch.load(genr_path).to(device)
     elif 'dfst' in attack:
-        backdoor = DFST(normalize, device=device)
-        genr_path = f'{base_path}_dfst_generator.pt'
-        if os.path.exists(genr_path):
-            backdoor.genr_a2b = torch.load(genr_path).to(device)
+        model_id = "CompVis/stable-diffusion-v1-4"
+        pipeline = StableDiffusionImg2ImgPipeline.from_pretrained(
+            model_id,
+            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+        ).to(device)
+        pipeline.enable_attention_slicing()
+        backdoor = DFST(
+            mixing_pipeline=pipeline,
+            normalize=normalize,
+            device=device
+        )
     else:
         backdoor = None
     return backdoor
