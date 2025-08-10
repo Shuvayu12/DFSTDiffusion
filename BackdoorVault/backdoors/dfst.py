@@ -20,7 +20,7 @@ class DFST:
         Apply style transfer using the diffusion model
         Args:
             content_image: The image to be stylized (tensor)
-            style_image: The sunset style reference image (tensor) [unused in current implementation]
+            style_image: The sunset style reference image (tensor) [unused]
             **kwargs: Additional arguments for the pipeline
         """
         # Denormalize if the input is normalized
@@ -31,17 +31,17 @@ class DFST:
         if isinstance(content_image, torch.Tensor):
             if content_image.dim() == 4:  # batch of images
                 content_images = [self.to_pil(img.cpu()) for img in content_image]
+                is_batch = True
             else:
                 content_images = [self.to_pil(content_image.cpu())]
-        elif isinstance(content_image, list):
-            content_images = content_image
+                is_batch = False
         else:
             content_images = [content_image]
+            is_batch = False
         
         # Process each image in the batch
         processed_images = []
         for img in content_images:
-            # Ensure image is in RGB mode
             if isinstance(img, Image.Image) and img.mode != 'RGB':
                 img = img.convert('RGB')
                 
@@ -54,16 +54,21 @@ class DFST:
                 return_dict=True
             )
             
-            # Get the processed image
+            # Get the processed image and ensure 4D (B,C,H,W)
             mixed_image = output.images[0] if isinstance(output.images, list) else output.images
-            
-            # Apply normalization if needed
-            if self.normalize is not None:
-                mixed_image = self.normalize(mixed_image)
+            if mixed_image.dim() == 3:
+                mixed_image = mixed_image.unsqueeze(0)  # Add batch dim if missing
             
             processed_images.append(mixed_image)
         
-        # Stack processed images back into a batch
+        # Combine results
         if len(processed_images) > 1:
-            return torch.stack(processed_images).to(self.device)
-        return processed_images[0].to(self.device)
+            result = torch.cat(processed_images, dim=0)
+        else:
+            result = processed_images[0]
+        
+        # Apply normalization if needed
+        if self.normalize is not None:
+            result = self.normalize(result)
+        
+        return result.to(self.device)

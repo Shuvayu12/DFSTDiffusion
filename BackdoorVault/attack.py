@@ -180,14 +180,20 @@ class Attack:
             self.loss_div = loss_div * self.lambda_div
         elif self.attack in ['dynamic', 'dfst', 'dfst_detox']:
             num_bd = int(inputs.size(0) * self.poison_rate)
+            
+            # Ensure we only pass the images to be poisoned
             inputs_bd = self.backdoor.inject(
                 content_image=inputs[:num_bd],
-                style_image=None,  
-                strength=0.75,     
-                guidance_scale=7.5 
+                strength=0.75,
+                guidance_scale=7.5
             )
+            
+            # Ensure the output has same dimensionality as input
+            if inputs_bd.dim() > inputs.dim():
+                inputs_bd = inputs_bd.squeeze(0)  # Remove extra batch dimension if needed
+            
             labels_bd = torch.full((num_bd,), self.target).to(self.device)
-
+            
             inputs = torch.cat([inputs_bd, inputs[num_bd:]], dim=0)
             labels = torch.cat([labels_bd, labels[num_bd:]], dim=0)
 
