@@ -148,6 +148,7 @@ def get_backdoor(attack, shape, normalize=None, device=None, args=None):
         model_id = "CompVis/stable-diffusion-v1-4"
         pipeline = StableDiffusionImg2ImgPipeline.from_pretrained(
             model_id,
+            safety_checker = None,
             torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
         ).to(device)
         pipeline.enable_attention_slicing()
