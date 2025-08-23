@@ -16,20 +16,11 @@ class DFST:
         self.std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1).to(self.device)
 
     def inject(self, content_image, style_image=None, **kwargs):
-        """
-        Apply style transfer using the diffusion model
-        Args:
-            content_image: The image to be stylized (tensor)
-            style_image: The sunset style reference image (tensor) [unused]
-            **kwargs: Additional arguments for the pipeline
-        """
-        # Denormalize if the input is normalized
+        content_image = content_image.to(self.device)
         if self.normalize is not None:
             content_image = content_image * self.std + self.mean
-        
-        # Convert tensor to PIL Image
         if isinstance(content_image, torch.Tensor):
-            if content_image.dim() == 4:  # batch of images
+            if content_image.dim() == 4:  
                 content_images = [self.to_pil(img.cpu()) for img in content_image]
                 is_batch = True
             else:
@@ -38,8 +29,7 @@ class DFST:
         else:
             content_images = [content_image]
             is_batch = False
-        
-        # Process each image in the batch
+
         processed_images = []
         for img in content_images:
             if isinstance(img, Image.Image) and img.mode != 'RGB':
@@ -53,22 +43,18 @@ class DFST:
                 output_type='pt',
                 return_dict=True
             )
-            
-            # Get the processed image and ensure 4D (B,C,H,W)
             mixed_image = output.images[0] if isinstance(output.images, list) else output.images
             if mixed_image.dim() == 3:
-                mixed_image = mixed_image.unsqueeze(0)  # Add batch dim if missing
+                mixed_image = mixed_image.unsqueeze(0)  
             
             processed_images.append(mixed_image)
-        
-        # Combine results
         if len(processed_images) > 1:
             result = torch.cat(processed_images, dim=0)
         else:
             result = processed_images[0]
         
-        # Apply normalization if needed
+        result = result.to(self.device)
         if self.normalize is not None:
             result = self.normalize(result)
         
-        return result.to(self.device)
+        return result

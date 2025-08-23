@@ -180,10 +180,10 @@ class Attack:
             self.loss_div = loss_div * self.lambda_div
         elif self.attack in ['dynamic', 'dfst', 'dfst_detox']:
             num_bd = int(inputs.size(0) * self.poison_rate)
-            
+            inputs_to_poison = inputs[:num_bd].to(self.device)
             # Ensure we only pass the images to be poisoned
             inputs_bd = self.backdoor.inject(
-                content_image=inputs[:num_bd],
+                content_image=inputs_to_poison,
                 strength=0.75,
                 guidance_scale=7.5
             )

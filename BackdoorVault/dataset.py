@@ -226,6 +226,8 @@ class PoisonDataset(Dataset):
 
     def inject_trigger(self, img):
         img = img.unsqueeze(0)
+        if hasattr(self.backdoor, 'device'):
+            img = img.to(self.backdoor.device)
         if 'refool' in self.attack or \
                 self.attack in ['blend', 'sig', 'invisible', 'polygon', 'filter']:
             assert self.processing
