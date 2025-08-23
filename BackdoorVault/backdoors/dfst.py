@@ -18,27 +18,21 @@ class DFST:
         self.to_tensor = transforms.ToTensor()
 
     def inject(self, content_image, style_image=None, **kwargs):
-        # Store original device and shape
-        original_device = content_image.device
-        was_batched = content_image.dim() == 4
-        if not was_batched:
-            content_image = content_image.unsqueeze(0)
-        
         # Ensure input is on correct device
         content_image = content_image.to(self.device)
         
         # Denormalize if needed
-        if self.normalize:
+        if self.normalize is not None:
             content_image = content_image * self.std + self.mean
         
         # Convert tensor to PIL Image
-        content_images = []
-        for img in content_image:
-            # Clamp values to [0, 1] range before converting to PIL
-            img = torch.clamp(img, 0, 1)
-            content_images.append(self.to_pil(img.cpu()))
+        if isinstance(content_image, torch.Tensor):
+            if content_image.dim() == 4:  # batch of images
+                content_images = [self.to_pil(img.cpu()) for img in content_image]
+            else:
+                content_images = [self.to_pil(content_image.cpu())]
         
-        # Process each image
+        # Process each image in batch
         processed_images = []
         for img in content_images:
             output = self.mixing_pipeline(
@@ -49,22 +43,15 @@ class DFST:
                 **kwargs
             )
             
-            # Get processed image
+            # Get processed image and move to correct device
             mixed_image = output.images[0] if isinstance(output.images, list) else output.images
             mixed_image = mixed_image.to(self.device)
             
             # Apply normalization if needed
-            if self.normalize:
-                mixed_image = (mixed_image - self.mean) / self.std
+            if self.normalize is not None:
+                mixed_image = self.normalize(mixed_image)
             
             processed_images.append(mixed_image)
         
-        # Stack processed images
-        result = torch.stack(processed_images) if len(processed_images) > 1 else processed_images[0]
-        
-        # Return to original device and shape
-        result = result.to(original_device)
-        if not was_batched:
-            result = result.squeeze(0)
-            
-        return result
+        # Stack processed images back into batch
+        return torch.stack(processed_images) if len(processed_images) > 1 else processed_images[0]
