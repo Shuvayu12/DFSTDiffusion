@@ -181,19 +181,30 @@ class Attack:
         elif self.attack in ['dynamic', 'dfst', 'dfst_detox']:
             num_bd = int(inputs.size(0) * self.poison_rate)
             
-            # Ensure we only pass the images to be poisoned
+            # Ensure inputs are 4D: [batch, channels, height, width]
+            if inputs.dim() == 3:
+                inputs = inputs.unsqueeze(0)
+            
+            # Get poisoned images
             inputs_bd = self.backdoor.inject(
                 content_image=inputs[:num_bd],
                 strength=0.75,
                 guidance_scale=7.5
             )
             
-            # Ensure the output has same dimensionality as input
-            if inputs_bd.dim() > inputs.dim():
-                inputs_bd = inputs_bd.squeeze(0)  # Remove extra batch dimension if needed
+            # Ensure consistent dimensions
+            if inputs_bd.dim() == 5:  # If [1, batch, channels, height, width]
+                inputs_bd = inputs_bd.squeeze(0)
+            elif inputs_bd.dim() == 3:  # If [channels, height, width]
+                inputs_bd = inputs_bd.unsqueeze(0)
+                
+            # Ensure both tensors are on same device
+            inputs_bd = inputs_bd.to(inputs.device)
             
+            # Create target labels for poisoned samples
             labels_bd = torch.full((num_bd,), self.target).to(self.device)
             
+            # Concatenate poisoned and clean samples
             inputs = torch.cat([inputs_bd, inputs[num_bd:]], dim=0)
             labels = torch.cat([labels_bd, labels[num_bd:]], dim=0)
 
