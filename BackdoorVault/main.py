@@ -53,7 +53,7 @@ def eval_acc(model, loader, backdoor=None):
     
 
 def train(args):
-    model = get_model(args.network).to(DEVICE)
+    model = get_model(args.network).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     model = torch.nn.DataParallel(model)
 
     train_loader = get_loader(args, train=True)
@@ -107,7 +107,7 @@ def train(args):
 
 def test(args):
     model_filepath = f'ckpt/{args.dataset}_{args.network}_{args.suffix}.pt'
-    model = torch.load(model_filepath, map_location=DEVICE)
+    model = torch.load(model_filepath, map_location=torch.device('cpu') if not torch.cuda.is_available() else DEVICE)
     model.eval()
 
     test_loader = get_loader(args, train=False)
@@ -193,7 +193,8 @@ def poison(args):
         normalize = get_dfst_transforms()
         backdoor = DFST(
             mixing_pipeline=pipeline,
-            normalize=normalize
+            normalize=normalize,
+            device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         )
     elif args.attack == 'dfst_detox':
         load_path = f'{save_path[:-9]}.pt'
